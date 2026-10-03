@@ -3,6 +3,7 @@ A web app designed to make your learning easier, track your progress, and improv
 
 # data base
 
+```mermaid
 erDiagram
     SUBJECTS ||--o{ TASKS : "has (CASCADE DELETE)"
     SUBJECTS ||--o{ STUDY_SESSIONS : "has (CASCADE DELETE)"
@@ -40,3 +41,5 @@ erDiagram
         string country "Nullable"
         int daily_goal_minutes "Default 120"
     }
+
+```
