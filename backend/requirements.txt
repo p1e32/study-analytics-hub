@@ -9,3 +9,8 @@ psycopg-binary==3.3.6
 SQLAlchemy==2.1.2
 typing_extensions==4.16.0
 Werkzeug==3.1.9
+
+flask-migrate
+python-dotenv
+flask-jwt-extended
+email-validator
