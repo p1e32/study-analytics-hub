@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import create_access_token, jwt_required
+from sqlalchemy import select
 from app import db
 from app.models import User
 from email_validator import validate_email, EmailNotValidError
@@ -45,10 +46,10 @@ def register():
     if error:
         return jsonify({'error': error}), 400
 
-    if User.query.filter_by(username=username).first():
+    if db.session.scalar(select(User).where(User.username == username)):
         return jsonify({'error': 'Username already exists'}), 409
 
-    if User.query.filter_by(email=email).first():
+    if db.session.scalar(select(User).where(User.email == email)):
         return jsonify({'error': 'Email already exists'}), 409
 
     new_user = User(username=username, email=email)
@@ -73,9 +74,8 @@ def login():
     if error:
         return jsonify({'error': error}), 400
 
-    user = User.query.filter_by(email=email).first()
+    user = db.session.scalar(select(User).where(User.email == email))
     if not user or not user.check_password(password):
         return jsonify({'error': 'Invalid email or password'}), 401
 
     return build_auth_response(user, status_code=200)
-

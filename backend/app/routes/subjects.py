@@ -2,6 +2,7 @@ import re
 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy import select
 
 from app import db
 from app.models import Subject
@@ -12,12 +13,14 @@ DEFAULT_COLOR = '#3B82F6'
 
 subjects_bp = Blueprint('subjects', __name__, url_prefix='/api/subjects')
 
+
 @subjects_bp.route('/', methods=['GET'])
 @jwt_required()
 def get_subjects():
     current_user_id = int(get_jwt_identity())
 
-    subjects = Subject.query.filter_by(user_id=current_user_id).all()
+    stmt = select(Subject).where(Subject.user_id == current_user_id)
+    subjects = db.session.scalars(stmt).all()
     return jsonify([s.to_dict() for s in subjects]), 200
 
 
@@ -76,7 +79,7 @@ def create_subject():
 def delete_subject(subject_id):
     current_user_id = int(get_jwt_identity())
 
-    subject = Subject.query.filter_by(id=subject_id, user_id=current_user_id).first()
+    subject = db.session.get(Subject, subject_id)
     if not subject:
         return jsonify({'error': 'Subject not found'}), 404
 
@@ -87,4 +90,3 @@ def delete_subject(subject_id):
     db.session.commit()
 
     return jsonify({'message': 'Subject deleted successfully'}), 200
-

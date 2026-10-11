@@ -1,30 +1,39 @@
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Optional
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy import String, Integer, DateTime, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app import db
 
 
 class User(db.Model):
     __tablename__ = 'users'
 
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(256), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-    # Add relationships
-    subjects = db.relationship('Subject', backref='user', cascade='all, delete-orphan', lazy=True)
-    settings = db.relationship('Settings', backref='user', uselist=False, cascade='all, delete-orphan')
+    # Relationships
+    subjects: Mapped[list['Subject']] = relationship(
+        back_populates='user',
+        cascade='all, delete-orphan'
+    )
+    settings: Mapped[Optional['Settings']] = relationship(
+        back_populates='user',
+        cascade='all, delete-orphan'
+    )
 
-    def set_password(self, password):
+    def set_password(self, password: str) -> None:
         """Hashes the password before saving to the database"""
         self.password_hash = generate_password_hash(password)
 
-    def check_password(self, password):
+    def check_password(self, password: str) -> bool:
         """Compares the entered password with the saved hash"""
         return check_password_hash(self.password_hash, password)
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             'id': self.id,
             'username': self.username,
@@ -36,18 +45,26 @@ class User(db.Model):
 class Subject(db.Model):
     __tablename__ = 'subjects'
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
 
-    name = db.Column(db.String(100), nullable=False)
-    color = db.Column(db.String(7), default='#3B82F6')
-    target_hours_per_week = db.Column(db.Integer, default=5)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    color: Mapped[str] = mapped_column(String(7), default='#3B82F6')
+    target_hours_per_week: Mapped[int] = mapped_column(Integer, default=5)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-    tasks = db.relationship('Task', backref='subject', cascade='all, delete-orphan', lazy=True)
-    study_sessions = db.relationship('StudySession', backref='subject', cascade='all, delete-orphan', lazy=True)
+    # Relationships
+    user: Mapped['User'] = relationship(back_populates='subjects')
+    tasks: Mapped[list['Task']] = relationship(
+        back_populates='subject',
+        cascade='all, delete-orphan'
+    )
+    study_sessions: Mapped[list['StudySession']] = relationship(
+        back_populates='subject',
+        cascade='all, delete-orphan'
+    )
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             'id': self.id,
             'user_id': self.user_id,
@@ -61,13 +78,16 @@ class Subject(db.Model):
 class Settings(db.Model):
     __tablename__ = 'settings'
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True)
-    university_name = db.Column(db.String(150), nullable=True)
-    country = db.Column(db.String(100), nullable=True)
-    daily_goal_minutes = db.Column(db.Integer, default=120)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), unique=True, nullable=False)
+    university_name: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+    country: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    daily_goal_minutes: Mapped[int] = mapped_column(Integer, default=120)
 
-    def to_dict(self):
+    # Relationships
+    user: Mapped['User'] = relationship(back_populates='settings')
+
+    def to_dict(self) -> dict:
         return {
             'id': self.id,
             'user_id': self.user_id,
@@ -80,17 +100,19 @@ class Settings(db.Model):
 class Task(db.Model):
     __tablename__ = 'tasks'
 
-    id = db.Column(db.Integer, primary_key=True)
-    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
-    title = db.Column(db.String(100), nullable=False)
-    status = db.Column(db.String(20), default='todo')  # 'todo', 'in_progress', 'done'
-    estimated_minutes = db.Column(db.Integer, nullable=True)
-    deadline = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    subject_id: Mapped[int] = mapped_column(ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
+    title: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default='todo')  # 'todo', 'in_progress', 'done'
+    estimated_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    deadline: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-    study_sessions = db.relationship('StudySession', backref='task', lazy=True)
+    # Relationships
+    subject: Mapped['Subject'] = relationship(back_populates='tasks')
+    study_sessions: Mapped[list['StudySession']] = relationship(back_populates='task')
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             'id': self.id,
             'subject_id': self.subject_id,
@@ -105,13 +127,17 @@ class Task(db.Model):
 class StudySession(db.Model):
     __tablename__ = 'study_sessions'
 
-    id = db.Column(db.Integer, primary_key=True)
-    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
-    task_id = db.Column(db.Integer, db.ForeignKey('tasks.id', ondelete='SET NULL'), nullable=True)
-    duration_minutes = db.Column(db.Integer, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    subject_id: Mapped[int] = mapped_column(ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
+    task_id: Mapped[Optional[int]] = mapped_column(ForeignKey('tasks.id', ondelete='SET NULL'), nullable=True)
+    duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-    def to_dict(self):
+    # Relationships
+    subject: Mapped['Subject'] = relationship(back_populates='study_sessions')
+    task: Mapped[Optional['Task']] = relationship(back_populates='study_sessions')
+
+    def to_dict(self) -> dict:
         return {
             'id': self.id,
             'subject_id': self.subject_id,
