@@ -76,7 +76,7 @@ def create_subject():
 
 @subjects_bp.route('/<int:subject_id>', methods=['DELETE'])
 @jwt_required()
-def delete_subject(subject_id):
+def delete_subject(subject_id: int):
     current_user_id = int(get_jwt_identity())
 
     subject = db.session.get(Subject, subject_id)
