@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import String, Integer, DateTime, ForeignKey
+from sqlalchemy import String, Integer, DateTime, ForeignKey, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app import db
 
@@ -99,11 +99,14 @@ class Settings(db.Model):
 
 class Task(db.Model):
     __tablename__ = 'tasks'
+    __table_args__ = (
+        CheckConstraint("status IN ('todo', 'in_progress', 'done')", name='valid_status'),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     subject_id: Mapped[int] = mapped_column(ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
     title: Mapped[str] = mapped_column(String(100), nullable=False)
-    status: Mapped[str] = mapped_column(String(20), default='todo')  # 'todo', 'in_progress', 'done'
+    status: Mapped[str] = mapped_column(String(20), default='todo')
     estimated_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     deadline: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
