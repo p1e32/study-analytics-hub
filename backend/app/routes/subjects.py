@@ -6,6 +6,7 @@ from sqlalchemy import select
 
 from app import db
 from app.models import Subject
+from app.utils.db_helpers import get_user_subject
 
 HOURS_IN_WEEK = 7 * 24  # 168 часов
 HEX_COLOR_REGEX = re.compile(r'^#[0-9a-fA-F]{6}$')
@@ -61,12 +62,11 @@ def create_subject():
     else:
         target_hours = 5
 
-    # Save to DB
     new_subject = Subject(
         user_id=current_user_id,
         name=name,
         color=color,
-        target_hours_per_week=target_hours
+        target_hours_per_week=target_hours,
     )
     db.session.add(new_subject)
     db.session.commit()
@@ -79,12 +79,9 @@ def create_subject():
 def delete_subject(subject_id: int):
     current_user_id = int(get_jwt_identity())
 
-    subject = db.session.get(Subject, subject_id)
-    if not subject:
-        return jsonify({'error': 'Subject not found'}), 404
-
-    if subject.user_id != current_user_id:
-        return jsonify({'error': 'You are not authorized to delete this subject'}), 403
+    subject = get_user_subject(subject_id, current_user_id)
+    if subject is None:
+        return jsonify({'error': 'Subject not found or you do not have access to it'}), 404
 
     db.session.delete(subject)
     db.session.commit()

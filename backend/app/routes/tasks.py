@@ -6,10 +6,12 @@ from sqlalchemy import select
 
 from app import db
 from app.models import Task, Subject
+from app.utils.db_helpers import get_user_task, get_user_subject
 
 tasks_bp = Blueprint('tasks', __name__, url_prefix='/api/tasks')
 
 VALID_STATUSES = {'todo', 'in_progress', 'done'}
+
 
 @tasks_bp.route('/', methods=['GET'])
 @jwt_required()
@@ -37,6 +39,7 @@ def get_tasks():
     tasks = db.session.scalars(stmt).all()
     return jsonify([task.to_dict() for task in tasks]), 200
 
+
 @tasks_bp.route('/', methods=['POST'])
 @jwt_required()
 def create_task():
@@ -52,25 +55,22 @@ def create_task():
     if len(title) > 100:
         return jsonify({'error': 'Title name cannot exceed 100 characters'}), 400
 
-    # Subject_id validation
+    # subject_id validation
     subject_id = data.get('subject_id')
-    if subject_id is not None:
-        if not isinstance(subject_id, int):
-            return jsonify({'error': 'subject_id must be an integer'}), 400
-    else:
+    if subject_id is None:
         return jsonify({'error': 'subject_id is required'}), 400
+    if isinstance(subject_id, bool) or not isinstance(subject_id, int):
+        return jsonify({'error': 'subject_id must be an integer'}), 400
 
-    stmt = select(Subject).where(Subject.id == subject_id, Subject.user_id == current_user_id)
-    subject = db.session.execute(stmt).scalar_one_or_none()
-    if subject is None:
+    if get_user_subject(subject_id, current_user_id) is None:
         return jsonify({'error': 'This subject does not exist or you do not have access to it'}), 400
 
-    # Estimated minutes validation
+    # estimated_minutes validation
     estimated_minutes = data.get('estimated_minutes')
     if estimated_minutes is not None:
         if isinstance(estimated_minutes, bool) or not isinstance(estimated_minutes, int):
             return jsonify({'error': 'estimated_minutes must be an integer'}), 400
-        if not 1 <= estimated_minutes:
+        if estimated_minutes < 1:
             return jsonify({'error': 'estimated_minutes must be at least 1'}), 400
 
     # Deadline validation
@@ -84,12 +84,11 @@ def create_task():
         except ValueError:
             return jsonify({'error': 'deadline must be in the format YYYY-MM-DDTHH:MM:SS'}), 400
 
-    # Save to DB
     new_task = Task(
         subject_id=subject_id,
         title=title,
         estimated_minutes=estimated_minutes,
-        deadline=deadline
+        deadline=deadline,
     )
     db.session.add(new_task)
     db.session.commit()
@@ -103,9 +102,7 @@ def change_task(task_id: int):
     current_user_id = int(get_jwt_identity())
     data = request.get_json() or {}
 
-    # Task id validation
-    stmt = select(Task).join(Subject).where(Task.id == task_id, Subject.user_id == current_user_id)
-    task = db.session.execute(stmt).scalar_one_or_none()
+    task = get_user_task(task_id, current_user_id)
     if task is None:
         return jsonify({'error': 'This task does not exist or you do not have access to it'}), 404
 
@@ -125,12 +122,12 @@ def change_task(task_id: int):
             return jsonify({'error': 'Title cannot exceed 100 characters'}), 400
         task.title = title.strip()
 
-    # Estimated minutes validation
+    # estimated_minutes validation
     if 'estimated_minutes' in data:
         est = data['estimated_minutes']
         if est is not None:
-            if not isinstance(est, int) or isinstance(est, bool) or est < 1:
-                return jsonify({'error': 'estimated_minutes must be a non-negative integer'}), 400
+            if isinstance(est, bool) or not isinstance(est, int) or est < 1:
+                return jsonify({'error': 'estimated_minutes must be an integer of at least 1'}), 400
         task.estimated_minutes = est
 
     # Deadline validation
@@ -154,8 +151,7 @@ def change_task(task_id: int):
 def delete_task(task_id: int):
     current_user_id = int(get_jwt_identity())
 
-    stmt = select(Task).join(Subject).where(Task.id == task_id, Subject.user_id == current_user_id)
-    task = db.session.execute(stmt).scalar_one_or_none()
+    task = get_user_task(task_id, current_user_id)
     if task is None:
         return jsonify({'error': 'This task does not exist or you do not have access to it'}), 404
 

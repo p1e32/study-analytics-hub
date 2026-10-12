@@ -20,8 +20,11 @@ def create_app():
     from app.routes.subjects import subjects_bp
     from app.routes.auth import auth_bp
     from app.routes.tasks import tasks_bp
+    from app.routes.timer import timer_bp
+
     app.register_blueprint(subjects_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(tasks_bp)
+    app.register_blueprint(timer_bp)
 
     return app
