@@ -1,0 +1,90 @@
+from flask import Blueprint, jsonify, request
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy import select
+
+from app import db
+from app.models import Subject
+from app.constants import (
+    DEFAULT_SUBJECT_COLOR,
+    DEFAULT_TARGET_HOURS_PER_WEEK,
+    HEX_COLOR_REGEX,
+    HOURS_IN_WEEK,
+    SUBJECT_NAME_MAX_LENGTH,
+)
+from app.utils.db_helpers import get_user_subject
+
+subjects_bp = Blueprint('subjects', __name__, url_prefix='/api/subjects')
+
+
+@subjects_bp.route('/', methods=['GET'])
+@jwt_required()
+def get_subjects():
+    current_user_id = int(get_jwt_identity())
+
+    stmt = select(Subject).where(Subject.user_id == current_user_id)
+    subjects = db.session.scalars(stmt).all()
+    return jsonify([s.to_dict() for s in subjects]), 200
+
+
+@subjects_bp.route('/', methods=['POST'])
+@jwt_required()
+def create_subject():
+    current_user_id = int(get_jwt_identity())
+    data = request.get_json() or {}
+
+    # Name validation
+    raw_name = data.get('name')
+    if not isinstance(raw_name, str) or not raw_name.strip():
+        return jsonify({'error': 'Subject name is required and cannot be empty'}), 400
+    name = raw_name.strip()
+
+    if len(name) > SUBJECT_NAME_MAX_LENGTH:
+        return jsonify({'error': f'Subject name cannot exceed {SUBJECT_NAME_MAX_LENGTH} characters'}), 400
+
+    # Color validation
+    raw_color = data.get('color')
+    if raw_color is not None:
+        if not isinstance(raw_color, str):
+            return jsonify({'error': 'Color must be a string'}), 400
+        color = raw_color.strip()
+        if not HEX_COLOR_REGEX.match(color):
+            return jsonify({'error': 'Invalid color format. Must be a 6-digit hex code like #3B82F6'}), 400
+    else:
+        color = DEFAULT_SUBJECT_COLOR
+
+    # Target hours per week validation
+    raw_hours = data.get('target_hours_per_week')
+    if raw_hours is not None:
+        if isinstance(raw_hours, bool) or not isinstance(raw_hours, int):
+            return jsonify({'error': 'target_hours_per_week must be an integer'}), 400
+        if not (1 <= raw_hours <= HOURS_IN_WEEK):
+            return jsonify({'error': f'target_hours_per_week must be between 1 and {HOURS_IN_WEEK}'}), 400
+        target_hours = raw_hours
+    else:
+        target_hours = DEFAULT_TARGET_HOURS_PER_WEEK
+
+    new_subject = Subject(
+        user_id=current_user_id,
+        name=name,
+        color=color,
+        target_hours_per_week=target_hours,
+    )
+    db.session.add(new_subject)
+    db.session.commit()
+
+    return jsonify(new_subject.to_dict()), 201
+
+
+@subjects_bp.route('/<int:subject_id>', methods=['DELETE'])
+@jwt_required()
+def delete_subject(subject_id: int):
+    current_user_id = int(get_jwt_identity())
+
+    subject = get_user_subject(subject_id, current_user_id)
+    if subject is None:
+        return jsonify({'error': 'Subject not found or you do not have access to it'}), 404
+
+    db.session.delete(subject)
+    db.session.commit()
+
+    return jsonify({'message': 'Subject deleted successfully'}), 200

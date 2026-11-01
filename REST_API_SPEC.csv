@@ -1,0 +1,11 @@
+Method,URL,Spec,Body (JSON),Response
+POST,/api/auth/register,register,"username, email, password","{ user, access_token } / 201"
+POST,/api/auth/login,login,"email, password","{ user, access_token } / 200"
+GET,/api/subjects/,user's subjects,—,"[ { id, name, color, ... } ] / 200"
+POST,/api/subjects/,create subjects,"name, color, target_hours_per_week","{ id, name, ... } / 201"
+DELETE,/api/subjects/<id>,delete subject,—,"{ message: ""Deleted"" } / 200"
+GET,/api/tasks/,list of tasks,Query params: ?status=todo,"[ { id, title, status, ... } ] / 200"
+POST,/api/tasks/,create task,"subject_id, title, estimated_minutes, deadline","{ id, title, ... } / 201"
+PATCH,/api/tasks/<id>,update task ststus,"{ status: ""done"" }","{ id, status, ... } / 200"
+POST,/api/timer/sessions,create sessions,"subject_id, task_id, duration_minutes","{ id, duration_minutes, ... } / 201"
+GET,/api/analytics/summary,summary,—,"{ total_hours, streaks, ... } / 200"
