@@ -21,10 +21,12 @@ def create_app():
     from app.routes.auth import auth_bp
     from app.routes.tasks import tasks_bp
     from app.routes.timer import timer_bp
+    from app.routes.analytics import analytics_bp
 
     app.register_blueprint(subjects_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(tasks_bp)
     app.register_blueprint(timer_bp)
+    app.register_blueprint(analytics_bp)
 
     return app
