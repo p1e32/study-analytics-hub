@@ -1,16 +1,17 @@
-import re
-
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import select
 
 from app import db
 from app.models import Subject
+from app.constants import (
+    DEFAULT_SUBJECT_COLOR,
+    DEFAULT_TARGET_HOURS_PER_WEEK,
+    HEX_COLOR_REGEX,
+    HOURS_IN_WEEK,
+    SUBJECT_NAME_MAX_LENGTH,
+)
 from app.utils.db_helpers import get_user_subject
-
-HOURS_IN_WEEK = 7 * 24  # 168 часов
-HEX_COLOR_REGEX = re.compile(r'^#[0-9a-fA-F]{6}$')
-DEFAULT_COLOR = '#3B82F6'
 
 subjects_bp = Blueprint('subjects', __name__, url_prefix='/api/subjects')
 
@@ -37,8 +38,8 @@ def create_subject():
         return jsonify({'error': 'Subject name is required and cannot be empty'}), 400
     name = raw_name.strip()
 
-    if len(name) > 100:
-        return jsonify({'error': 'Subject name cannot exceed 100 characters'}), 400
+    if len(name) > SUBJECT_NAME_MAX_LENGTH:
+        return jsonify({'error': f'Subject name cannot exceed {SUBJECT_NAME_MAX_LENGTH} characters'}), 400
 
     # Color validation
     raw_color = data.get('color')
@@ -49,7 +50,7 @@ def create_subject():
         if not HEX_COLOR_REGEX.match(color):
             return jsonify({'error': 'Invalid color format. Must be a 6-digit hex code like #3B82F6'}), 400
     else:
-        color = DEFAULT_COLOR
+        color = DEFAULT_SUBJECT_COLOR
 
     # Target hours per week validation
     raw_hours = data.get('target_hours_per_week')
@@ -60,7 +61,7 @@ def create_subject():
             return jsonify({'error': f'target_hours_per_week must be between 1 and {HOURS_IN_WEEK}'}), 400
         target_hours = raw_hours
     else:
-        target_hours = 5
+        target_hours = DEFAULT_TARGET_HOURS_PER_WEEK
 
     new_subject = Subject(
         user_id=current_user_id,

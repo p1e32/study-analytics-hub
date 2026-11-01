@@ -4,15 +4,15 @@ from sqlalchemy import select
 
 from app import db
 from app.models import StudySession, Subject
+from app.constants import (
+    DEFAULT_SESSIONS_LIMIT,
+    MAX_DURATION_MINUTES,
+    MAX_SESSIONS_LIMIT,
+    MIN_DURATION_MINUTES,
+)
 from app.utils.db_helpers import task_belongs_to_subject, get_user_subject
 
 timer_bp = Blueprint('timer', __name__, url_prefix='/api/timer')
-
-# Limits and constraints
-DEFAULT_SESSIONS_LIMIT = 10
-MAX_SESSIONS_LIMIT = 50
-MIN_DURATION_MINUTES = 1
-MAX_DURATION_MINUTES = 720
 
 
 def validate_int_field(value, field_name: str, required: bool = True) -> tuple[int | None, str | None]:

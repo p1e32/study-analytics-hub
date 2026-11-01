@@ -3,6 +3,7 @@ from flask_jwt_extended import create_access_token, jwt_required
 from sqlalchemy import select
 from app import db
 from app.models import User
+from app.constants import MIN_PASSWORD_LENGTH
 from email_validator import validate_email, EmailNotValidError
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
@@ -39,8 +40,8 @@ def register():
     if not username or not password or not raw_email:
         return jsonify({'error': 'Username, email and password are required'}), 400
 
-    if len(password) < 6:
-        return jsonify({'error': 'Password must be at least 6 characters long'}), 400
+    if len(password) < MIN_PASSWORD_LENGTH:
+        return jsonify({'error': f'Password must be at least {MIN_PASSWORD_LENGTH} characters long'}), 400
 
     email, error = normalize_email(raw_email)
     if error:

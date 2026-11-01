@@ -6,11 +6,10 @@ from sqlalchemy import select
 
 from app import db
 from app.models import Task, Subject
+from app.constants import TASK_TITLE_MAX_LENGTH, VALID_TASK_STATUSES
 from app.utils.db_helpers import get_user_task, get_user_subject
 
 tasks_bp = Blueprint('tasks', __name__, url_prefix='/api/tasks')
-
-VALID_STATUSES = {'todo', 'in_progress', 'done'}
 
 
 @tasks_bp.route('/', methods=['GET'])
@@ -22,8 +21,8 @@ def get_tasks():
 
     status = request.args.get('status')
     if status is not None:
-        if status not in VALID_STATUSES:
-            return jsonify({'error': f"Invalid status. Must be one of: {', '.join(sorted(VALID_STATUSES))}"}), 400
+        if status not in VALID_TASK_STATUSES:
+            return jsonify({'error': f"Invalid status. Must be one of: {', '.join(sorted(VALID_TASK_STATUSES))}"}), 400
         stmt = stmt.where(Task.status == status)
 
     raw_subject_id = request.args.get('subject_id')
@@ -52,8 +51,8 @@ def create_task():
         return jsonify({'error': 'Title name is required and cannot be empty'}), 400
     title = raw_title.strip()
 
-    if len(title) > 100:
-        return jsonify({'error': 'Title name cannot exceed 100 characters'}), 400
+    if len(title) > TASK_TITLE_MAX_LENGTH:
+        return jsonify({'error': f'Title name cannot exceed {TASK_TITLE_MAX_LENGTH} characters'}), 400
 
     # subject_id validation
     subject_id = data.get('subject_id')
@@ -109,8 +108,8 @@ def change_task(task_id: int):
     # Status validation
     if 'status' in data and data['status'] is not None:
         status = data['status']
-        if status not in VALID_STATUSES:
-            return jsonify({'error': f"Invalid status. Must be one of: {', '.join(sorted(VALID_STATUSES))}"}), 400
+        if status not in VALID_TASK_STATUSES:
+            return jsonify({'error': f"Invalid status. Must be one of: {', '.join(sorted(VALID_TASK_STATUSES))}"}), 400
         task.status = status
 
     # Title validation
@@ -118,8 +117,8 @@ def change_task(task_id: int):
         title = data['title']
         if not isinstance(title, str) or not title.strip():
             return jsonify({'error': 'Title cannot be empty'}), 400
-        if len(title.strip()) > 100:
-            return jsonify({'error': 'Title cannot exceed 100 characters'}), 400
+        if len(title.strip()) > TASK_TITLE_MAX_LENGTH:
+            return jsonify({'error': f'Title cannot exceed {TASK_TITLE_MAX_LENGTH} characters'}), 400
         task.title = title.strip()
 
     # estimated_minutes validation

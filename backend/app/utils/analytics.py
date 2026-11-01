@@ -1,10 +1,7 @@
 """Pure helper functions for analytics (no database access -> easy to unit-test)."""
 from datetime import date, datetime, timedelta, timezone
 
-VALID_PERIODS = {'day', 'week', 'month', 'all'}
-
-# Rolling windows: "last N days counting back from now".
-PERIOD_DAYS = {'week': 7, 'month': 30}
+from app.constants import PERIOD_DAYS, VALID_PERIODS
 
 
 def get_period_start(period: str, now: datetime | None = None) -> datetime | None:
@@ -63,3 +60,19 @@ def calculate_streak(study_dates: list[date], today: date | None = None) -> int:
         expected_date -= timedelta(days=1)
 
     return streak
+
+
+def calculate_time_metrics(estimated_minutes: int | None, actual_minutes: int) -> tuple[int | None, bool]:
+    """
+    Compares planned and real time spent on a task.
+    Returns (difference_minutes, is_overdue_time):
+
+    - no estimate     -> (None, False): there is nothing to compare with
+    - estimate is set -> (actual - estimated, actual > estimated)
+      positive difference = over budget, negative = finished faster than planned
+    """
+    if estimated_minutes is None:
+        return None, False
+
+    difference = actual_minutes - estimated_minutes
+    return difference, difference > 0

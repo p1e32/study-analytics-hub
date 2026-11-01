@@ -4,6 +4,14 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import String, Integer, DateTime, ForeignKey, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app import db
+from app.constants import (
+    DEFAULT_SUBJECT_COLOR,
+    DEFAULT_TARGET_HOURS_PER_WEEK,
+    DEFAULT_TASK_STATUS,
+    SUBJECT_NAME_MAX_LENGTH,
+    TASK_STATUSES,
+    TASK_TITLE_MAX_LENGTH,
+)
 
 
 class User(db.Model):
@@ -48,9 +56,9 @@ class Subject(db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
 
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    color: Mapped[str] = mapped_column(String(7), default='#3B82F6')
-    target_hours_per_week: Mapped[int] = mapped_column(Integer, default=5)
+    name: Mapped[str] = mapped_column(String(SUBJECT_NAME_MAX_LENGTH), nullable=False)
+    color: Mapped[str] = mapped_column(String(7), default=DEFAULT_SUBJECT_COLOR)
+    target_hours_per_week: Mapped[int] = mapped_column(Integer, default=DEFAULT_TARGET_HOURS_PER_WEEK)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
@@ -100,13 +108,14 @@ class Settings(db.Model):
 class Task(db.Model):
     __tablename__ = 'tasks'
     __table_args__ = (
-        CheckConstraint("status IN ('todo', 'in_progress', 'done')", name='valid_status'),
+        # Generated from TASK_STATUSES; the text is: status IN ('todo', 'in_progress', 'done')
+        CheckConstraint(f"status IN ({', '.join(repr(s) for s in TASK_STATUSES)})", name='valid_status'),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     subject_id: Mapped[int] = mapped_column(ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
-    title: Mapped[str] = mapped_column(String(100), nullable=False)
-    status: Mapped[str] = mapped_column(String(20), default='todo')
+    title: Mapped[str] = mapped_column(String(TASK_TITLE_MAX_LENGTH), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default=DEFAULT_TASK_STATUS)
     estimated_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     deadline: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
